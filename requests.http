@@ -1,0 +1,141 @@
+@baseUrl = http://localhost:4000
+@email = notes-owner@example.test
+@password = TestPassword123
+@otherEmail = notes-other@example.test
+@otherPassword = OtherPassword123
+@token = {{login.response.body.token}}
+@otherToken = {{otherLogin.response.body.token}}
+@noteId = {{createNote.response.body.note.id}}
+# Generate a real expired token locally; see README.md, then paste it here.
+@expiredToken = paste-expired-token-here
+
+### Register owner
+# @name register
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Notes Owner",
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Login owner and capture token
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{login.response.body.token}}
+
+### List notes with optional filters and pagination
+GET {{baseUrl}}/api/notes?q=meeting&tag=work&pinned=false&page=1&limit=20
+Authorization: Bearer {{token}}
+
+### Create a note
+# @name createNote
+POST {{baseUrl}}/api/notes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Project meeting",
+  "body": "Discuss milestones.",
+  "tags": ["work", "planning"],
+  "pinned": false
+}
+
+### Get a note
+GET {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{token}}
+
+### Update a note
+# @name updateNote
+PATCH {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Updated project meeting",
+  "pinned": true
+}
+
+### Register another user
+# @name registerOther
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "name": "Another User",
+  "email": "{{otherEmail}}",
+  "password": "{{otherPassword}}"
+}
+
+### Login as another user
+# @name otherLogin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{otherEmail}}",
+  "password": "{{otherPassword}}"
+}
+
+### Confirm another user cannot read the note (404)
+GET {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{otherToken}}
+
+### Confirm another user cannot update the note (404)
+PATCH {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{otherToken}}
+Content-Type: application/json
+
+{
+  "title": "Unauthorized change"
+}
+
+### Confirm another user cannot delete the note (404)
+DELETE {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{otherToken}}
+
+### Delete the note as its owner
+DELETE {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{token}}
+
+### Failure: missing token (401)
+GET {{baseUrl}}/api/notes
+
+### Failure: garbled token (401)
+GET {{baseUrl}}/api/notes
+Authorization: Bearer not.a.valid.token
+
+### Failure: expired token (401)
+GET {{baseUrl}}/api/notes
+Authorization: Bearer {{expiredToken}}
+
+### Failure: invalid note UUID (422)
+GET {{baseUrl}}/api/notes/not-a-uuid
+Authorization: Bearer {{token}}
+
+### Failure: invalid note body (422)
+POST {{baseUrl}}/api/notes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "",
+  "body": 42
+}
+
+### Failure: empty patch body (422)
+PATCH {{baseUrl}}/api/notes/{{noteId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
